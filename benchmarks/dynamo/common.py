@@ -1424,11 +1424,19 @@ class AOTInductorModelCache:
             elif current_device == "hpu":
                 torch.hpu.reset_peak_memory_stats()
 
+            # Clone the model pre-exporting.  This prevents scenarios observed in a few
+            # models, where the forward pass modifies model state while exporting, and
+            # FakeTensors are thus saved as model data members.  This invalidates model
+            # reuse in eager mode, so it's safest to export a model clone.
+            #
+            # TODO: this skews compression stats, which will need to be fixed pre-merge.
+            model_clone = copy.deepcopy(model)
+
             inductor_configs = {}
             if mode == "max-autotune":
                 inductor_configs["max_autotune"] = True
             ep = torch.export.export(
-                model,
+                model_clone,
                 example_args,
                 example_kwargs,
                 dynamic_shapes=dynamic_shapes,
