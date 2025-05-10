@@ -4209,10 +4209,13 @@ def wrap_test_class(orig_cls):
         ):
             dct[name] = unittest.expectedFailure
         elif name.startswith("test_"):
+            backend = lookup_backend(name)
+            if not HAS_CUDA and backend == "inductor":
+                continue
             ctxs = [
                 compiled_autograd._enable(
                     make_compiler_fn(
-                        backend=lookup_backend(name),
+                        backend=backend,
                         fullgraph=name not in known_graph_breaks_tests,
                     )
                 ),
@@ -4305,6 +4308,8 @@ known_graph_breaks_tests = {
     "test_full_backward_hook_double_backward",  # _pack_with_none
     "test_grad_mode_restored_reentrant",  # assertTrue
     "test_multi_grad_any_hooks",  # register_multi_grad_hook
+    "test_saved_variable_packing_unpacking_did_not_save_original_with_hooks",  # register_hooks
+    "test_graph_save_on_cpu",  # dynamo disabled
 }
 
 test_contexts = {
@@ -4370,19 +4375,7 @@ xfail_by_backend = {
         "test_to_sparse_backward",  # Out of bounds: frame_state_entry.stride[i] is None
         "test_custom_function_non_tensor_inputs_outputs",  # gradient batching rule not implemented for aten::sym_size.int
         "test_setitem",  # CopySlices accuracy error
-        "test_save_on_cpu_and_checkpoint",  # https://github.com/pytorch/pytorch/issues/147565
-        "test_checkpoint_detects_non_determinism",  # different error
-        "test_checkpointing_non_reentrant_autocast_cpu",  # saved != recompute
-        "test_checkpointing_non_reentrant_autocast_gpu",  # saved != recompute
         "test_checkpointing_without_reentrant_saved_object_identity",  # same as https://github.com/pytorch/pytorch/issues/136193
-        "test_saved_variable_packing_unpacking_did_not_save_original_with_hooks",  # register_hooks multiple times
-        "test_saved_variable_saved_original_inplace_detach",  # RuntimeError not raised
-        "test_access_saved_tensor_twice_without_recomputation_works",  # saved != recompute
-        "test_checkpointing_without_reentrant_dataparallel",  # https://github.com/pytorch/pytorch/issues/127115
-        "test_checkpointing",  # takes very very long
-        "test_checkpointing_without_reentrant_input_requires_grad_False",  # takes very very long
-        "test_checkpointing_without_reentrant_input_requires_grad_True",  # takes very very long
-        "test_checkpointing_without_reentrant_memory_savings",  # takes very very long
         "test_dtensor_different_gradient_placement",  # Dynamo failed to run FX node with fake tensors
         "test_dtensor_noncontiguous_output",  # Dynamo failed to run FX node with fake tensors
         "test_dtensor_partial_placement_graph_output",  # Dynamo failed to run FX node with fake tensors
